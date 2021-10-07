@@ -1,0 +1,5 @@
+classes = 4
+train = /home/training/PhuongND/datasets/data_drink/train.txt
+valid = /home/training/PhuongND/datasets/data_drink/test.txt
+names = ./detector/YOLOv4/drink_ix2.names
+backup = backup_ixt_1
