@@ -1,7 +1,0 @@
-YOLOV4:
-  CFG: "./detector/YOLOv4/yolov4_original.cfg"
-  WEIGHT: "./detector/YOLOv4/yolov4.weights"
-  DATA_FILE: "./detector/YOLOv4/coco.data"
-
-  SCORE_THRESH: 0.4
-  NMS_THRESH: 0.4
