@@ -1,0 +1,9 @@
+DEEPSORT:
+  REID_CKPT: "./deep_sort/deep_new/model_best_35classes.pth"
+  MAX_DIST: 0.25
+  MIN_CONFIDENCE: 0.40
+  NMS_MAX_OVERLAP: 0.3
+  MAX_IOU_DISTANCE: 0.0
+  MAX_AGE: 700000
+  N_INIT: 1
+  NN_BUDGET: 1000
