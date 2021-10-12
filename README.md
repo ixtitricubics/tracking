@@ -1,5 +1,7 @@
 # to create a new branch
+<p>
 <code>
-<p/>git checkout -b new_branch_name branch_name_to_copy
-<p/>git push -u origin new
+git checkout -b new_branch_name branch_name_to_copy
+git push -u origin new
 </code>
+</p>
