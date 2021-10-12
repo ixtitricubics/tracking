@@ -8,5 +8,7 @@
 
 
 # to merge two branches
+<pre>
 git checkout updating_branch_name
 git merge branch_name_to_copy_from
+</pre>
