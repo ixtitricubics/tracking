@@ -76,7 +76,7 @@ class Track:
         self.age = 1
         self.time_since_update = 0
         self.reused = 0
-        self.state = TrackState.Tentative
+        self.state = TrackState.Confirmed
         self.features = []
         # self.preds = []
         if feature is not None:
@@ -99,6 +99,21 @@ class Track:
         ret[2] *= ret[3]
         ret[:2] -= ret[2:] / 2
         return ret
+    def to_centre(self):
+        """Get current position in bounding box format `(top left x, top left y,
+        width, height)`.
+
+        Returns
+        -------
+        ndarray
+            The bounding box.
+
+        """
+        ret = self.mean[:4].copy()
+        ret[2] *= ret[3]
+        ret[:2] -= ret[2:] / 2
+        centre = [ret[0] + ret[2]/2, ret[1] + ret[3]/2]
+        return centre
     def to_tlwhxwyw(self):
         """Get current position in bounding box format `(top left x, top left y,
         width, height, x world , y world)`.
@@ -160,8 +175,8 @@ class Track:
             det_box_coords[-2:] =  self.mean[4:6]
         self.mean, self.covariance = kf.update(
             self.mean, self.covariance,det_box_coords )
-        if(self.hits > 30):
-            new_feat = np.mean([self.features[np.random.randint(0,50)]] + [detection.feature], 0)
+        if(self.hits > 10): # this is necessary sometimes 
+            new_feat = np.mean([self.features[np.random.randint(0,min(10, len(self.features)))]] + [detection.feature], 0)
             self.features.append(new_feat)
         if(len(self.features) > 200):
             # print("**"*50)

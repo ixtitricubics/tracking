@@ -1,6 +1,6 @@
 # vim: expandtab:ts=4:sw=4
 import numpy as np
-
+from deep_sort.sort.iou_matching import iou_cost, iou_cost_new
 
 def _pdist(a, b):
     """Compute pair-wise squared distance between points in `a` and `b`.
@@ -79,6 +79,12 @@ def cord_euclidian_dist(mean, bbox):
     x,y = bbox[:2]
     x_,y_ = mean[:2]
     return np.hypot(x-x_, y-y_)
+def cord_euclidian_dist_centre(centre_, bbox):
+    x,y = bbox[:2]
+    x,y = x+bbox[2]/2, y+bbox[3]/2
+    x_,y_ = centre_
+    return np.hypot(x-x_, y-y_)
+
 def _nn_cosine_distance(x, y):
     """ Helper function for nearest neighbor distance metric (cosine).
 
@@ -179,15 +185,17 @@ class NearestNeighborDistanceMetric(object):
         for i, target in enumerate(tracks):
             # print("shapes", np.shape(target.features), np.shape(features))
             if(len(target.features) == 0 ): # this is impossible though lets just put it here 
-                cost_matrix[i, :] = 100000.0
+                cost_matrix[i, :] = 1e+5
             else:
                 cost_matrix[i, :] =  self._metric(target.features, features)  # + preds_det[] - target_preds
         
+        cost_matrix_= iou_cost_new(tracks, dets)
+        cost_matrix += 0.1 * cost_matrix_
+        # print(np.min(cost_matrix_), np.max(cost_matrix_))
             # print("samples", target, np.shape(self.samples[target]),np.shape(features), np.shape(cost_matrix), np.shape(self._metric(self.samples[target], features)))
-        # if(bboxes is not None and means is not None):
         # for i, target in enumerate(tracks):
         #     for j, det in enumerate(dets):
-        #         cost_matrix[i,j] +=  0.3 * cord_euclidian_dist(target.mean, det.tlwh) / np.sqrt((width * height))
+        #         cost_matrix[i,j] +=  0.3 * cord_euclidian_dist_centre(target.to_centre(), det.tlwh) / np.sqrt((width * height))
         # print("cost matrix")               
         # print(cost_matrix)
         return cost_matrix

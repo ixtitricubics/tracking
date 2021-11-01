@@ -34,6 +34,12 @@ class DeepSort(object):
         self.height, self.width = None, None
         self.history = {}
         self.cam = cameras[cam_no]
+
+        if(True):
+            self.backSub = cv2.createBackgroundSubtractorMOG2()
+        else:
+            self.backSub = cv2.createBackgroundSubtractorKNN()
+
     def draw(self,):
         if(self.height is not None):
             board = np.zeros((self.height, self.width,3),dtype=np.uint8)
@@ -91,8 +97,8 @@ class DeepSort(object):
         # output bbox identities
         outputs = []
         for track in self.tracker.tracks:
-            if not track.is_confirmed() or track.time_since_update > 1:
-                continue
+            # if not track.is_confirmed() or track.time_since_update > 1:
+            #     continue
             box = track.to_tlwh()
             x1,y1,x2,y2 = self._tlwh_to_xyxy(box)
             
@@ -139,8 +145,8 @@ class DeepSort(object):
         # run on non-maximum supression
         # boxes = np.array([d.tlwh for d in detections])
         # scores = np.array([d.confidence for d in detections])
-        indices = non_max_suppression(boxes, self.nms_max_overlap, confidences_)
-        detections = [detections[i] for i in indices]
+        # indices = non_max_suppression(boxes, self.nms_max_overlap, confidences_)
+        # detections = [detections[i] for i in indices]
 
         # update tracker
         self.tracker.predict()
@@ -241,7 +247,7 @@ class DeepSort(object):
         confidences = []
 
         for i in range(len(poses)):
-            xyxy, pos, crop = self.get_crop(ori_img, poses[i], self.cam, threshold=0.2)
+            xyxy, pos, crop = self.get_crop(ori_img, poses[i], self.cam, threshold=threshold/2)
             
             if(pos is None):
                 pos = [-1, -1]
@@ -261,17 +267,24 @@ class DeepSort(object):
         
         return features, np.float32(boxes), np.float32(positions), np.float32(confidences)
 
-    def get_crop(self, img, pose, cam, threshold=0.2):
+    def get_crop(self, img, pose, cam, threshold=0.2, use_body25=True, use_coco=False, use_mpi=False):
         """
         pose is a 25x3 array
         """
+        
         # print(pose)
         if(pose == []):
             return None, None, None
         pts = np.int32(pose[:,:2])
         scores = pose[:,2]
         mask = np.zeros(shape=img.shape[:2], dtype=np.uint8)
-        first_pairs = [1,8,   1,2,   1,5,   2,3,   3,4,   5,6,   6,7,   8,9,   9,10,  10,11, 8,12,  12,13, 13,14,  1,0,   0,15, 15,17,  0,16, 16,18,   2,17,  5,18,   14,19,19,20,14,21, 11,22,22,23,11,24]
+        if(use_body25):
+            first_pairs = [1,8,   1,2,   1,5,   2,3,   3,4,   5,6,   6,7,   8,9,   9,10,  10,11, 8,12,  12,13, 13,14,  1,0,   0,15, 15,17,  0,16, 16,18,   2,17,  5,18,   14,19,19,20,14,21, 11,22,22,23,11,24] #
+        elif(use_coco):
+            first_pairs = [1,2, 1,5, 2,3, 5,6, 3,4, 6,7, 8,9, 9,10, 11,12, 12,13]# 
+        elif(use_mpi):
+            first_pairs = [0,1,   1,2,   2,3,   3,4,   1,5,   5,6,   6,7,   1,14,  14,8,  8,9,  9,10,  14,11, 11,12, 12,13]
+            
         select = scores > threshold
         if(len(pts[select]) == 0):
             return None, None, None
@@ -292,7 +305,13 @@ class DeepSort(object):
         max_y = np.max(pts[select,1]) + 20
 
         # pts for the head and shoulders
-        headpts_ids = [0, 1, 2, 5,15,16,17,18]
+        if(use_body25):
+            headpts_ids = [0, 1, 2, 5,15,16,17,18]
+        elif(use_coco):
+            headpts_ids = [0, 1, 2,5, 14,15,16,17]
+        elif(use_mpi):
+            headpts_ids = [0, 1, 2, 5, 14]
+
         head_pts = []
         for i in range(len(headpts_ids)):
             if(scores[headpts_ids[i]] < threshold): continue
@@ -311,13 +330,22 @@ class DeepSort(object):
         else:
             box = None
             return None, None, None
+        if(use_body25):
+            r_angle = 21
+            l_ankle = 24
+        elif(use_coco):
+            r_angle = 10
+            l_ankle = 13
+        elif(use_mpi):
+            r_angle = 10
+            l_ankle = 13
         # height = max_y - min_y
-        if(scores[21] > threshold and scores[24] > threshold):
-            heel_centre = pts[21] if pts[21][1] >pts[24][1] else pts[24] #(pts[21] + pts[24])//2
-        elif(scores[21] > threshold):
-            heel_centre = pts[21]
-        elif(scores[24] > threshold):
-            heel_centre = pts[24]
+        if(scores[r_angle] > threshold and scores[l_ankle] > threshold):
+            heel_centre = pts[r_angle] if pts[r_angle][1] >pts[l_ankle][1] else pts[l_ankle] #(pts[r_angle] + pts[l_ankle])//2
+        elif(scores[r_angle] > threshold):
+            heel_centre = pts[r_angle]
+        elif(scores[l_ankle] > threshold):
+            heel_centre = pts[l_ankle]
         else:
             heel_centre = None
         if(heel_centre is None):
@@ -333,18 +361,27 @@ class DeepSort(object):
 
             # cv2.line(mask, pts[first_pairs[i]], pts[first_pairs[i+1]], (255, 255, 255), 28)
         poly_pts = np.int32(poly_pts)
-        cv2.polylines(mask, pts =[poly_pts], color=(255,255,255),isClosed=True, thickness=20, lineType=-1)
+        cv2.polylines(mask, pts =[poly_pts], color=(255,255,255),isClosed=True, thickness=5, lineType=-1)
 
         # print(height)
-        img = cv2.bitwise_and(img, img, mask=mask)
-        # if(False):
-        #     cv2.imshow("cut", img)
-        #     cv2.waitKey(0)
-        if(False):
-            current = time.time()
-            print("showing images")            
-            tmp = np.copy(img[min_y:max_y, min_x:max_x])
-            print(tmp.shape)
+        
+        fg_mask = self.backSub.apply(img, mask)
+
+        kernel = np.ones((5,5), np.uint8)
+        fg_mask = fg_mask + mask
+        fg_mask = cv2.dilate(fg_mask, kernel, iterations=1)
+        fg_mask[fg_mask > 0] = 255
+        img = cv2.bitwise_and(img, img, mask=fg_mask)
+
+
+        if(True):
+            cv2.imshow("cut" + str(self.cam), img)
+            cv2.waitKey(3)
+        # if(True):
+            # current = time.time()
+            # print("showing images")            
+            # tmp = np.copy(img[min_y:max_y, min_x:max_x])
+            # print(tmp.shape)
             
             # plt.imshow(tmp)
             # plt.show()

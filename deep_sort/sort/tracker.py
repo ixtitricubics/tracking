@@ -51,7 +51,11 @@ class Tracker:
         self._next_id = 1
         self.height, self.width = 1,1
         self.db = db
+        # print("initializing from database ----\n\n\n\n\n")
         self._initiate_track_from_db()
+        # print("initializing from database ----\n\n\n\n\n")
+        # print("initializing from database ----\n\n\n\n\n")
+        # print("initializing from database ----\n\n\n\n\n")
     def predict(self):
         """Propagate track state distributions one time step forward.
 
@@ -98,7 +102,9 @@ class Tracker:
         for i in range(len(self.tracks)):
             if(self.tracks[i].track_id == track_id):
                 id_ind = i
-        self.tracks[id_ind].features += feats
+        if(self.tracks[id_ind].time_since_update  < 3):
+            # print("adding new feats")
+            self.tracks[id_ind].features += feats
 
     def update(self, detections):
         """Perform measurement update and track management.
@@ -117,8 +123,8 @@ class Tracker:
         for track_idx, detection_idx in matches:
             self.tracks[track_idx].update(
                 self.kf, detections[detection_idx])
-        for track_idx in unmatched_tracks:
-            self.tracks[track_idx].mark_missed()
+        # for track_idx in unmatched_tracks:
+        #     self.tracks[track_idx].mark_missed()
         for detection_idx in unmatched_detections:
             self._initiate_track(detections[detection_idx])
             # print("init track")
@@ -202,6 +208,7 @@ class Tracker:
         self.tracks.append(Track(
             mean, covariance, self._next_id, self.n_init, self.max_age,
             detection.feature))
+        self.tracks[-1].confirmed = True
         self._next_id += 1
     def _initiate_track_from_db(self):
         print("initializing from db started ")

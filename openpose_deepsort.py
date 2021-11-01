@@ -8,7 +8,7 @@ import torch
 import warnings
 import numpy as np
 
-from detector import build_detector_yolo4
+# from detector import build_detector_yolo4
 from deep_sort import build_tracker, db
 from utils.data.dataset import euclidean
 from utils.draw import draw_boxes
@@ -142,13 +142,16 @@ class VideoTracker(object):
         
         while True:
             idx_frame += 1
+            for i in range(len(self.vdos)):
+                    _ = self.vdos[i]["cap"].grab()
             if idx_frame % self.args.frame_interval:
+                print(idx_frame)
                 continue
             
             start = time.time()
             rets, imgs = [],[]
             for i in range(len(self.vdos)):
-                ret, ori_im = self.vdos[i]["cap"].read()
+                ret, ori_im = self.vdos[i]["cap"].retrieve()
                 rets.append(ret)
                 imgs.append(ori_im)
             if(np.sum(rets) == 0):
@@ -193,7 +196,7 @@ class VideoTracker(object):
                         mean_position, cam_id = positions[person_id][j]
                         fixes[(person_id, cam_id)] = mean_position
             
-
+            
             # if there is data in fixes fix it )))
             if(len(result_positions) > 0):
                 for fix_id in fixes:
@@ -205,14 +208,15 @@ class VideoTracker(object):
                     
                     corr_id = min(losses, key=losses.get)
                     
-                    if(losses[corr_id]< 50): # 50 sm
+                    if(losses[corr_id]< 60): # 50 sm
                         feat_corr = self.deepsorts[cam_ind].get_feat(corr_id)
                         feat_fix = self.deepsorts[cam_ind].get_feat(fix_id[0])
-                        dist = _cosine_distance([feat_corr], [feat_fix])
+                        dist = _cosine_distance([feat_corr], [feat_fix])[0][0]
                         print("corrected ", fix_id, " _to_", corr_id, " loss=", losses[corr_id], dist)    
-                        if(dist < 0.3):
+                        if(dist < 0.32):
                             self.deepsorts[fix_id[1]].merge_track(fix_id[0], corr_id)
                     else:
+                        # pass
                         self.deepsorts[fix_id[1]].delete_track(fix_id[0])
                     # changes.append(np.agrmin(losses)
                     # changes.append([fix_id, corr_id])
@@ -245,10 +249,9 @@ class VideoTracker(object):
             if(ret == 27):
                 break
 
-            # if(len(outputs) > 0):
+            if(len(result_positions) > 0):
             #     # logging:
-            #     self.logger.info("time: {:.03f}s, fps: {:.03f}, detection numbers: {}, tracking numbers: {}" \
-            #                     .format(end - start, 1 / (end - start), len(poses), len(outputs)))
+                self.logger.info("time: {:.03f}s, fps: {:.03f}".format(end - start, 1 / (end - start)))
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -257,14 +260,13 @@ def parse_args():
     parser.add_argument("--config_deepsort", type=str, default="./configs/deep_sort.yaml")
     # parser.add_argument("--ignore_display", dest="display", action="store_false", default=True)
     parser.add_argument("--display", action="store_true")
-    parser.add_argument("--frame_interval", type=int, default=2)
+    parser.add_argument("--frame_interval", type=int, default=3)
     parser.add_argument("--display_width", type=int, default=400)
     parser.add_argument("--display_height", type=int, default=300)
     parser.add_argument("--save_path", type=str, default="./output/")
     parser.add_argument("--cpu", dest="use_cuda", action="store_false", default=True)
     parser.add_argument("--camera", action="store", dest="cam", type=int, default="-1")
     return parser.parse_args()
-
 
 if __name__ == "__main__":
     args = parse_args()
@@ -274,7 +276,7 @@ if __name__ == "__main__":
     cfg.display_width = args.display_width
     cfg.display_height = args.display_height
     root = "/home/ixti/Documents/projects/github/my_tracker/data/train/lab/"
-    names = ["4p-c0.avi","4p-c1.avi", "4p-c2.avi", "4p-c3.avi"]
+    names = ["4p-c0.avi","4p-c1.avi" , "4p-c2.avi" ,  "4p-c3.avi" ]#  , 
     paths= [root + names[i] for i in range(len(names))]
     with VideoTracker(cfg, args, video_paths=paths) as vdo_trk:
         vdo_trk.run()
