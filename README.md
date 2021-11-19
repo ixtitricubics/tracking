@@ -18,4 +18,6 @@ git merge branch_name_to_copy_from
 git config --global credential.helper store
 </pre>
 # if you want to change user, then relogin again.
+<pre>
 gh auth login
+</pre>
