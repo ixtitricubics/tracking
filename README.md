@@ -21,3 +21,7 @@ git config --global credential.helper store
 <pre>
 gh auth login
 </pre>
+to show images in docker
+<pre>
+xhost +si:localuser:root
+</pre>
