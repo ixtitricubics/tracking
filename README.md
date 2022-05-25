@@ -29,3 +29,13 @@ to show images in docker
 <pre>
 xhost +si:localuser:root
 </pre>
+
+to link existing non github repo project to the github repo first time 
+<pre>
+git init
+git add README.md
+git commit -m "first commit"
+git branch -M main
+git remote add origin https://github.com/ixtitricubics/ros_packages_openstore.git
+</pre>
+git push -u origin main
